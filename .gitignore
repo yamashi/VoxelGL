@@ -1,0 +1,9 @@
+Build/projects
+Build/lib/*.lib
+!Build/bin/x32/*.dll
+!Build/bin/x64/*.dll
+*.pdb
+*.exe
+*.idb
+*.ilk
+*.log
