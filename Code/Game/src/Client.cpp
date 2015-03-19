@@ -1,6 +1,7 @@
 #include "Client.h"
 #include "Renderer.h"
 #include "Log.h"
+#include "Memory.h"
 
 void Initialize()
 {

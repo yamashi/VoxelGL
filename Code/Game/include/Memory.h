@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 
 #ifdef WIN32
 #	define StackAllocateArray(type, c) (type*)_malloca(sizeof(type) * c)
@@ -41,7 +42,7 @@ public:
 	void* Allocate();
 	void Free(void* apPtr);
 
-	void Collect(MemoryBlock* apBlock);
+	void Collect(MemoryBlock* apBlock, void* apPtr);
 
 	static const uint32_t cMagic = 0xDEAFBEEF;
 	static const uint32_t cBlockSize = 1 << 22;
@@ -58,6 +59,8 @@ private:
 
 	uint32_t m_dataSize;
 	uint32_t m_availableMax;
+
+	std::mutex m_lock;
 };
 
 class MemoryPool
@@ -72,13 +75,20 @@ public:
 
 	static MemoryPool& GetInstance()
 	{
-		static MemoryPool instance;
-		return instance;
+		if (s_instance == nullptr)
+		{
+			void* pPlacement = malloc(sizeof(MemoryPool));
+			s_instance = new (pPlacement)MemoryPool;
+		}
+		return *s_instance;
 	}
 
 private:
 
 	static const uint32_t cPoolCount = 14;
 
+	static MemoryPool* s_instance;
+
 	StaticMemoryPool* m_pPools[cPoolCount];
+	std::mutex m_lock;
 };

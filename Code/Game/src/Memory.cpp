@@ -4,6 +4,8 @@
 #include <memory>
 #include <iostream>
 
+// This will leak on purpose
+MemoryPool* MemoryPool::s_instance = nullptr;
 
 void* operator new(std::size_t n)
 {
@@ -46,8 +48,6 @@ inline uint32_t GetExponentShift() { return _GetExponentShift<sizeof(void*)>(); 
 StaticMemoryPool::StaticMemoryPool(uint32_t aExponent)
 	: m_dataSize(1 << aExponent)
 {
-	m_pHead = CreateBlock();
-	m_pCurrent = m_pHead;
 	m_availableMax = 0;
 
 	intptr_t alignOffset = 6 * sizeof(void*);
@@ -58,17 +58,13 @@ StaticMemoryPool::StaticMemoryPool(uint32_t aExponent)
 		alignOffset += m_dataSize;
 		m_availableMax++;
 	}
+
+	m_pHead = CreateBlock();
+	m_pCurrent = m_pHead;
 }
 
 StaticMemoryPool::~StaticMemoryPool()
 {
-	MemoryBlock* pNext = nullptr;
-	while (m_pHead)
-	{
-		pNext = m_pHead->pNextBlock;
-		FreeAligned(m_pHead);
-		m_pHead = pNext;
-	}
 }
 
 MemoryBlock* StaticMemoryPool::CreateBlock()
@@ -89,7 +85,6 @@ MemoryBlock* StaticMemoryPool::CreateBlock()
 		pCurrent->pNext = (MemoryBlock::Data*)(intptr_t(pBlock) + alignOffset);
 		pCurrent = pCurrent->pNext;
 		alignOffset += m_dataSize;
-		pBlock->available++;
 	}
 
 	pCurrent->pNext = nullptr;
@@ -99,23 +94,38 @@ MemoryBlock* StaticMemoryPool::CreateBlock()
 
 void* StaticMemoryPool::Allocate()
 {
+	m_lock.lock();
+
 	MemoryBlock::Data* pCurrent = m_pCurrent->pHead;
 	if (pCurrent == nullptr)
 	{
 		FindBlock();
-		return Allocate();
+		pCurrent = m_pCurrent->pHead;
 	}
 
 	m_pCurrent->pHead = pCurrent->pNext;
 	m_pCurrent->available--;
 
+	m_lock.unlock();
+
 	return (void*)pCurrent;
+
 }
 
-void StaticMemoryPool::Collect(MemoryBlock* apBlock)
+void StaticMemoryPool::Collect(MemoryBlock* apBlock, void* apPtr)
 {
+	m_lock.lock();
+
+	MemoryBlock::Data* pCurrent = (MemoryBlock::Data*)apPtr;
+	MemoryBlock::Data* pHead = apBlock->pHead;
+
+	apBlock->pHead = pCurrent;
+	pCurrent->pNext = pHead;
+
 	if (apBlock == m_pHead || m_pCurrent == apBlock)
 	{
+		m_lock.unlock();
+
 		return;
 	}
 
@@ -123,6 +133,8 @@ void StaticMemoryPool::Collect(MemoryBlock* apBlock)
 	{
 		FreeAligned(apBlock);
 	}
+
+	m_lock.unlock();
 }
 
 void StaticMemoryPool::FindBlock()
@@ -151,7 +163,7 @@ MemoryPool::MemoryPool()
 {
 	for (uint32_t i = 0; i < cPoolCount; ++i)
 	{
-		void* pInplace = malloc(sizeof(StaticMemoryPool));
+		void* pInplace = malloc(sizeof(StaticMemoryPool) * 2);
 		m_pPools[i] = new (pInplace) StaticMemoryPool(i + GetExponentShift());
 	}
 }
@@ -194,11 +206,5 @@ void MemoryPool::Free(void* apPtr)
 
 	StaticMemoryPool* pPool = pBlock->pParent;
 
-	MemoryBlock::Data* pCurrent = (MemoryBlock::Data*)apPtr;
-	MemoryBlock::Data* pHead = pBlock->pHead;
-
-	pBlock->pHead = pCurrent;
-	pCurrent->pNext = pHead;
-
-	pPool->Collect(pBlock);
+	pPool->Collect(pBlock, apPtr);
 }
