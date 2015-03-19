@@ -17,64 +17,64 @@ Shader::Shader(const std::string& acVertCode, const std::string& acFragCode)
 
 Shader::~Shader()
 {
-    glDeleteShader(m_vertexId);
-    glDeleteShader(m_fragmentId);
-    glDeleteProgram(m_programId);
+	glDeleteShader(m_vertexId);
+	glDeleteShader(m_fragmentId);
+	glDeleteProgram(m_programId);
 }
 
 bool Shader::Load()
 {
-    if(glIsShader(m_vertexId) == GL_TRUE)
-        glDeleteShader(m_vertexId);
+	if (glIsShader(m_vertexId) == GL_TRUE)
+		glDeleteShader(m_vertexId);
 
-    if(glIsShader(m_fragmentId) == GL_TRUE)
-        glDeleteShader(m_fragmentId);
+	if (glIsShader(m_fragmentId) == GL_TRUE)
+		glDeleteShader(m_fragmentId);
 
-    if(glIsProgram(m_programId) == GL_TRUE)
-        glDeleteProgram(m_programId);
-
-
-    if(!Build(m_vertexId, GL_VERTEX_SHADER, m_vertexSource))
-        return false;
-
-    if(!Build(m_fragmentId, GL_FRAGMENT_SHADER, m_fragmentSource))
-        return false;
+	if (glIsProgram(m_programId) == GL_TRUE)
+		glDeleteProgram(m_programId);
 
 
-    m_programId = glCreateProgram();
+	if (!Build(m_vertexId, GL_VERTEX_SHADER, m_vertexSource))
+		return false;
+
+	if (!Build(m_fragmentId, GL_FRAGMENT_SHADER, m_fragmentSource))
+		return false;
 
 
-    glAttachShader(m_programId, m_vertexId);
-    glAttachShader(m_programId, m_fragmentId);
+	m_programId = glCreateProgram();
 
 
-    glBindAttribLocation(m_programId, 0, "in_Vertex");
-    glBindAttribLocation(m_programId, 1, "in_Color");
-    glBindAttribLocation(m_programId, 2, "in_TexCoord0");
+	glAttachShader(m_programId, m_vertexId);
+	glAttachShader(m_programId, m_fragmentId);
 
 
-    glLinkProgram(m_programId);
+	glBindAttribLocation(m_programId, 0, "in_Vertex");
+	glBindAttribLocation(m_programId, 1, "in_Color");
+	glBindAttribLocation(m_programId, 2, "in_TexCoord0");
+
+
+	glLinkProgram(m_programId);
 
 	GLint erreurLink{ 0 };
-    glGetProgramiv(m_programId, GL_LINK_STATUS, &erreurLink);
+	glGetProgramiv(m_programId, GL_LINK_STATUS, &erreurLink);
 
 
-    if(erreurLink != GL_TRUE)
-    {
+	if (erreurLink != GL_TRUE)
+	{
 		GLint errorLen{ 0 };
-        glGetProgramiv(m_programId, GL_INFO_LOG_LENGTH, &errorLen);
+		glGetProgramiv(m_programId, GL_INFO_LOG_LENGTH, &errorLen);
 
 		char *pError = StackAllocateArray(char, errorLen);
 
-        glGetShaderInfoLog(m_programId, errorLen, &errorLen, pError);
-        pError[errorLen] = '\0';
+		glGetShaderInfoLog(m_programId, errorLen, &errorLen, pError);
+		pError[errorLen] = '\0';
 
 		LOG(ERROR) << "error=\"Link failed\" msg=\"" << pError << "\"";
 
-        glDeleteProgram(m_programId);
+		glDeleteProgram(m_programId);
 
-        return false;
-    }
+		return false;
+	}
 
 	return true;
 }
@@ -82,43 +82,43 @@ bool Shader::Load()
 
 bool Shader::Build(GLuint &shader, GLenum type, const std::string &filePath)
 {
-    shader = glCreateShader(type);
-    if(shader == 0)
-    {
+	shader = glCreateShader(type);
+	if (shader == 0)
+	{
 		LOG(ERROR) << "error=\"No shader type exists\" type=" << type;
-        return false;
-    }
+		return false;
+	}
 
-    std::ifstream src(filePath.c_str());
-    if(!src)
-    {
+	std::ifstream src(filePath.c_str());
+	if (!src)
+	{
 		LOG(ERROR) << "error=\"Can't find source file\" path=\"" << filePath << "\"";
-        glDeleteShader(shader);
+		glDeleteShader(shader);
 
-        return false;
-    }
+		return false;
+	}
 
-    std::string line;
-    std::string sourceCode;
+	std::string line;
+	std::string sourceCode;
 
 	while (getline(src, line))
 		sourceCode += line + '\n';
 
-    src.close();
+	src.close();
 
 	const GLchar* cpSource = sourceCode.c_str();
 
 	glShaderSource(shader, 1, &cpSource, 0);
 
-    glCompileShader(shader);
+	glCompileShader(shader);
 
 	GLint error{ 0 };
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &error);
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &error);
 
-    if(error != GL_TRUE)
-    {
+	if (error != GL_TRUE)
+	{
 		GLint errorLen{ 0 };
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &errorLen);
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &errorLen);
 
 		char* pError = StackAllocateArray(char, errorLen);
 
@@ -127,15 +127,15 @@ bool Shader::Build(GLuint &shader, GLenum type, const std::string &filePath)
 
 		LOG(ERROR) << "error=\"Build failed\" msg=\"" << pError << "\"";
 
-        glDeleteShader(shader);
+		glDeleteShader(shader);
 
-        return false;
-    }
+		return false;
+	}
 
 	return true;
 }
 
 GLuint Shader::GetId() const
 {
-    return m_programId;
+	return m_programId;
 }

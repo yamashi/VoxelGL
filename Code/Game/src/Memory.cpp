@@ -10,25 +10,21 @@ MemoryPool* MemoryPool::s_instance = nullptr;
 void* operator new(std::size_t n)
 {
 	void* p = MemoryPool::GetInstance().Allocate((uint32_t)n);
-	//std::cout << "alloc " << p << std::endl;
 	return p;
 }
 
 void operator delete(void * p) throw()
 {
-	//std::cout << "delete " << p << std::endl;
 	MemoryPool::GetInstance().Free(p);
 }
 
 void *operator new[](std::size_t n)
 {
 	void* p = MemoryPool::GetInstance().Allocate((uint32_t)n);
-	//std::cout << "alloc[] " << p << std::endl;
 	return p;
 }
 void operator delete[](void *p) throw()
 {
-	//std::cout << "delete[] " << p << std::endl;
 	MemoryPool::GetInstance().Free(p);
 }
 

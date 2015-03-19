@@ -22,7 +22,7 @@ public:
 	Shader(const std::string& acVertCode, const std::string& acFragCode);
     ~Shader();
 
-    GLuint GetId() const;
+	GLuint GetId() const;
 
 protected:
 
@@ -31,10 +31,10 @@ protected:
 
 private:
 
-	GLuint m_vertexId{ 0 };
-	GLuint m_fragmentId{ 0 };
-	GLuint m_programId{ 0 };
+    GLuint m_vertexId{ 0 };
+    GLuint m_fragmentId{ 0 };
+    GLuint m_programId{ 0 };
 
-	std::string m_vertexSource;
+    std::string m_vertexSource;
 	std::string m_fragmentSource;
 };
