@@ -1,4 +1,6 @@
 #include "Log.h"
+
+#define _ELPP_DEFAULT_LOG_FILE "Game.log"
 #include "easylogging++.h"
 
 _INITIALIZE_EASYLOGGINGPP
@@ -9,7 +11,6 @@ void InitializeLog()
 	defaultConf.setToDefault();
 	// To set GLOBAL configurations you may use
 	defaultConf.setGlobally(el::ConfigurationType::Format, "%datetime level=%level %msg");
-	defaultConf.setGlobally(el::ConfigurationType::Filename, "Game.log");
 	defaultConf.setGlobally(el::ConfigurationType::ToStandardOutput, "true");
 
 	el::Loggers::reconfigureLogger("default", defaultConf);
@@ -19,4 +20,10 @@ void InitializeLog()
 void ShutdownLog()
 {
 
+}
+
+void Crash(const char* acpMessage)
+{
+	LOG(ERROR) << "error=\"" << acpMessage << "\"";
+	exit(-1);
 }

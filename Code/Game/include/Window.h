@@ -20,6 +20,8 @@ public:
 	Window(const Options& acOptions);
 	~Window();
 
+	void Show();
+
 private:
 
 	SDL_Window* m_pWindow{ nullptr };

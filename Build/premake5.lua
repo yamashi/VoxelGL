@@ -40,7 +40,9 @@ solution "VoxelGL"
     links
     {
         "ws2_32",
-        "winmm"
+        "winmm",
+        "opengl32",
+        "glu32",
     }
     end
 	
@@ -56,7 +58,8 @@ solution "VoxelGL"
 		}
         defines
         {
-            "WIN32"
+            "WIN32",
+            "GLEW_STATIC"
         }
        
 	configuration "x32"
@@ -107,6 +110,13 @@ solution "VoxelGL"
                     "../Code/Game/src/**.cpp",
                     "../Code/Game/src/**.def",
                 }
+    
+        if os.is("windows") then  
+                files 
+                { 
+                    "../Code/Game/glew/**.c",
+                }
+    end    
                 
                 libdirs 
                 {

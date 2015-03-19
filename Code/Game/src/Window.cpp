@@ -1,7 +1,8 @@
 #include "Window.h"
+#include "Log.h"
+
 #include "SDL.h"
 
-#include "easylogging++.h"
 
 Window::Window(const Options& acOptions)
 {
@@ -13,10 +14,23 @@ Window::Window(const Options& acOptions)
 
 	m_pWindow = SDL_CreateWindow(acOptions.Caption.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, acOptions.Width, acOptions.Height, flags);
 
-	m_renderer.SetContext(SDL_GL_CreateContext(m_pWindow));
+	auto ctx = SDL_GL_CreateContext(m_pWindow);
+	if (ctx == nullptr)
+	{
+		Crash("Unable to create a OpenGL context");
+	}
+
+	m_renderer.Initialize(ctx);
+
+
 }
 
 Window::~Window()
 {
 	SDL_DestroyWindow(m_pWindow);
+}
+
+void Window::Show()
+{
+	SDL_GL_SwapWindow(m_pWindow);
 }

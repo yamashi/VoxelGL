@@ -12,7 +12,7 @@ public:
 	Renderer();
 	~Renderer();
 
-	void SetContext(SDL_GLContext aContext);
+	void Initialize(SDL_GLContext aContext);
 
 private:
 
