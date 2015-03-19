@@ -1,9 +1,10 @@
 #include "Client.h"
 #include "Window.h"
 #include "Shader.h"
+#include "Utils.h"
+#include "Log.h"
 
 #include "SDL.h"
-
 
 #ifdef WIN32
 #	include <GL/glew.h>

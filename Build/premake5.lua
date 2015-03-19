@@ -61,6 +61,7 @@ solution "VoxelGL"
             "WIN32",
             "GLEW_STATIC"
         }
+        debugdir "Runtime"
        
 	configuration "x32"
         libdirs { "../Libs/x86" }
