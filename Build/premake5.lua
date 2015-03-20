@@ -131,7 +131,10 @@ solution "VoxelGL"
                     "winmm",
                     "dbghelp",
                     "SDL2main",
-                    "SDL2"
+                    "SDL2",
+                    "SDL2_image",
+                    "SDL2_ttf",
+                    "SDL2_mixer"
                 }
     end          
 

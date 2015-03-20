@@ -2,3 +2,4 @@
 
 void Initialize();
 void Shutdown();
+void GameLoop();
