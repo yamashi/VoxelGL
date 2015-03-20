@@ -1,28 +1,19 @@
 #pragma once
 
-#ifdef WIN32
-#	include <GL/glew.h>
-#elif __APPLE__
-#	define GL3_PROTOTYPES 1
-#	include <OpenGL/gl3.h>
-#else
-#	define GL3_PROTOTYPES 1
-#	include <GL3/gl3.h>
-#endif
+#include "Initializable.h"
 
-#include <iostream>
-#include <string>
-#include <fstream>
-
-class Shader
+class Shader : public Initializable
 {
 public:
 
 	Shader();
-	Shader(const std::string& acVertCode, const std::string& acFragCode);
 	~Shader();
 
 	GLuint GetId() const;
+
+	void Load(const std::string& acVertCode, const std::string& acFragCode);
+
+	static std::shared_ptr<Shader> Create() { return std::make_shared<Shader>(); }
 
 protected:
 
@@ -38,3 +29,6 @@ private:
 	std::string m_vertexSource;
 	std::string m_fragmentSource;
 };
+
+using ShaderPtr = std::shared_ptr < Shader > ;
+using ShaderWeakPtr = std::weak_ptr < Shader > ;

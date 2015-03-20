@@ -84,6 +84,9 @@ solution "VoxelGL"
 	configuration "PubRel"
         defines { "NDEBUG", "PUBLIC_BUILD" }
         optimize "On"
+        
+    filter "files:**.c"
+        flags { "NoPCH" }
  
 	------------------------------------------------------------------
     -- logic projects
@@ -111,8 +114,17 @@ solution "VoxelGL"
                     "../Code/Game/src/**.cpp",
                     "../Code/Game/src/**.def",
                 }
+                
+                pchheader "Base.h"
+                pchsource "../Code/Game/src/Base.cpp"
+                
+                
+                filter "files:**.cpp"
+                    forceincludes { "Base.h" }
     
-        if os.is("windows") then  
+                filter {}
+    
+    if os.is("windows") then  
                 files 
                 { 
                     "../Code/Game/glew/**.c",

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "SDL_ttf.h"
-#include <string>
-
 class UIFont
 {
 public:

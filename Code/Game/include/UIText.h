@@ -2,6 +2,7 @@
 
 #include "UIFont.h"
 #include "Shader.h"
+#include "Texture.h"
 
 class UIText
 {
@@ -18,7 +19,11 @@ public:
 
 	std::string GetText() const;
 
-	void Draw();
+	void Draw(float aScreenWidth, float aScreenHeight, glm::mat4 aProjection, glm::mat4 aModelView);
+
+	void SetPosition(float aX, float aY) { m_posX = aX; m_posY = aY; }
+	float GetPositionX() const { return m_posX; }
+	float GetPositionY() const { return m_posY; }
 
 protected:
 
@@ -26,11 +31,16 @@ protected:
 
 private:
 
+	void DoConstruct();
+
+	GLuint m_vboId{ 0 };
+	GLuint m_vaoId{ 0 };
+
+	float m_posX{ 0.0f };
+	float m_posY{ 0.0f };
+
 	UIFont& m_font;
 	std::string m_text;
-	SDL_Surface* m_pSurface{ nullptr };
-	uint32_t m_textureId{ 0 };
-	Shader m_simpleSplat;
-
-	float m_height, m_width;
+	ShaderPtr m_pShader;
+	Texture m_texture;
 };

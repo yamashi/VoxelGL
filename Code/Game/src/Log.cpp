@@ -1,8 +1,5 @@
 #include "Log.h"
 
-#define _ELPP_DEFAULT_LOG_FILE "Game.log"
-#include "easylogging++.h"
-
 _INITIALIZE_EASYLOGGINGPP
 
 void InitializeLog()

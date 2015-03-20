@@ -4,6 +4,7 @@
 #include "Memory.h"
 #include "TaskManager.h"
 #include "UserInterface.h"
+#include "ThreadLocal.h"
 
 #include "UIFont.h"
 #include "UIText.h"
@@ -11,23 +12,12 @@
 #include "Window.h"
 #include "Renderer.h"
 #include "Shader.h"
-
-#include "glm/glm.hpp"
-#include "glm/gtx/transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-
-#ifdef WIN32
-#	include <GL/glew.h>
-#elif __APPLE__
-#	define GL3_PROTOTYPES 1
-#	include <OpenGL/gl3.h>
-#else
-#	define GL3_PROTOTYPES 1
-#	include <GL3/gl3.h>
-#endif
+#include "Cube.h"
 
 void Initialize()
 {
+	InitializableMemory();
+	InitializableTLS();
 	InitializeLog();
 	TaskManager::Initialize();
 	InitializeRenderer();
@@ -40,6 +30,8 @@ void Shutdown()
 	ShutdownRenderer();
 	TaskManager::Shutdown();
 	ShutdownLog();
+	ShutdownTLS();
+	ShutdownMemory();
 }
 
 class Test : public Task
@@ -65,40 +57,50 @@ public:
 	}
 };
 
+struct Camera
+{
+	float x{ 0.0f }, y{ 0.0f };
+};
+
 void GameLoop()
 {
 	Window window{ { 800, 600, false, "Test" } };
 
 	SDL_Event evt;
 
-	float vertices[] = { 1, -1, 1, 1, -1, 1,
-						  1, -1, -1, -1, -1, 1 };
-	float couleurs[] = { 0.0, 204.0 / 255.0, 1.0, 1.0, 204.0 / 255.0, 1.0, 0.0, 100.0 / 255.0, 1.0, 
-						 0.0, 204.0 / 255.0, 1.0, 1.0, 204.0 / 255.0, 1.0, 0.0, 100.0 / 255.0, 1.0 };
+	SDL_SetRelativeMouseMode(SDL_TRUE);
 
-	//glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-	//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, couleurs);
+	Shader shaderCouleur;
+	shaderCouleur.Load("Shaders/test2D.vert", "Shaders/test2D.frag");
 
-	Shader shaderCouleur("Shaders/test2D.vert", "Shaders/test2D.frag");
-
-	glm::mat4 projection;
+	glm::mat4 projection = glm::perspective(70.0, (double)800 / 600, 1.0, 10000.0);
+	glm::mat4 uiProjection = glm::ortho(0.0f, (float)800.f, (float)600.f, 0.0f, 0.0f, 100.0f);
 	glm::mat4 modelview;
-
-	projection = glm::perspective(70.0, (double)800 / 600, 1.0, 100.0);
-	modelview = glm::mat4(1.0);
-	modelview = glm::translate(modelview, glm::vec3(100.0, -2.0, 0.0));
 
 	UIFont bebasFont("Fonts/bebas.ttf", 40);
 
 	UIText txt(bebasFont);
-	
-	int ctr = 0;
+	txt.SetText("test toast toaster ------        ");
+
+	Cube c(1.0f);
+	Camera camera;
+
+	glm::vec3 position(0.0, 0.0, -2.0);
+
 	while (true)
 	{
-		++ctr;
-		TaskManager::GetInstance().Run(10);
+		modelview = glm::mat4(1.0);
 
-		txt.SetText("Test lol " + std::to_string(ctr));
+		float phiRadian = camera.y * M_PI / 180;
+		float thetaRadian = camera.x * M_PI / 180;
+
+		glm::vec3 orientation;
+
+		orientation.x = cos(phiRadian) * sin(thetaRadian);
+		orientation.y = sin(phiRadian);
+		orientation.z = cos(phiRadian) * cos(thetaRadian);
+
+		TaskManager::GetInstance().Run(10);
 
 		while (SDL_PollEvent(&evt))
 		{
@@ -114,28 +116,50 @@ void GameLoop()
 					for (int i = 0; i < 1000; ++i)
 						TaskManager::GetInstance().AddBackground(new Test(i));
 				}
+				else if (evt.key.keysym.sym == SDLK_ESCAPE)
+				{
+					return;
+				}
+				else if (evt.key.keysym.sym == SDLK_w)
+				{
+					position += orientation;
+				}
+				else if (evt.key.keysym.sym == SDLK_s)
+				{
+					position -= orientation;
+				}
+				else if (evt.key.keysym.sym == SDLK_d)
+				{
+					position += glm::normalize(glm::cross(orientation, glm::vec3(0.0, 1.0, 0.0)));
+				}
+				else if (evt.key.keysym.sym == SDLK_a)
+				{
+					position -= glm::normalize(glm::cross(orientation, glm::vec3(0.0, 1.0, 0.0)));
+				}
+				break;
+			case SDL_MOUSEMOTION:
+				//txt.SetPosition(txt.GetPositionX() + evt.motion.xrel, txt.GetPositionY() + evt.motion.yrel);
+				camera.x -= evt.motion.xrel / 10.f;
+				camera.y -= evt.motion.yrel / 10.f;
+				break;
 			}
 		}
 
-		glClear(GL_COLOR_BUFFER_BIT);
+		
+		modelview = glm::lookAt(position, position + orientation, glm::vec3(0.0, 1.0, 0.0));
 
-		/*glUseProgram(shaderCouleur.GetId());
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 
-		//glUniformMatrix4fv(glGetUniformLocation(shaderCouleur.GetId(), "modelview"), 1, GL_FALSE, value_ptr(modelview));
-		//glUniformMatrix4fv(glGetUniformLocation(shaderCouleur.GetId(), "projection"), 1, GL_FALSE, value_ptr(projection));
+		c.Draw(projection, modelview);
+		{
+			
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		glDisableVertexAttribArray(1);
-		glDisableVertexAttribArray(0);
-
-		glUseProgram(0);*/
-
-		txt.Draw();
-
+			txt.Draw(800.f, 600.f, uiProjection, modelview);
+		}
 		window.Show();
 	}
 }

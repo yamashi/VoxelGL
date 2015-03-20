@@ -1,15 +1,33 @@
 #include "Memory.h"
 #include "Utils.h"
-
-#include <memory>
-#include <iostream>
+#include "ThreadLocal.h"
 
 // This will leak on purpose
 MemoryPool* MemoryPool::s_instance = nullptr;
 
+MemoryPool* s_pGraphicPool = nullptr;
+MemoryPool* s_pNetworkPool = nullptr;
+MemoryPool* s_pPhysicsPool = nullptr;
+MemoryPool* s_pScratchPool = nullptr;
+
 void* operator new(std::size_t n)
 {
-	void* p = MemoryPool::GetInstance().Allocate((uint32_t)n);
+	void* p = nullptr;
+
+	if (s_pTls)
+	{
+		MemoryPool* pPool = s_pTls->memory.Get();
+		if (pPool)
+		{
+			p = pPool->Allocate((uint32_t)n);
+		}
+	}
+
+	if (!p)
+	{
+		p = MemoryPool::GetInstance().Allocate((uint32_t)n);
+	}
+
 	return p;
 }
 
@@ -20,7 +38,22 @@ void operator delete(void * p) throw()
 
 void *operator new[](std::size_t n)
 {
-	void* p = MemoryPool::GetInstance().Allocate((uint32_t)n);
+	void* p = nullptr;
+
+	if (s_pTls)
+	{
+		MemoryPool* pPool = s_pTls->memory.Get();
+		if (pPool)
+		{
+			p = pPool->Allocate((uint32_t)n);
+		}
+	}
+
+	if (!p)
+	{
+		p = MemoryPool::GetInstance().Allocate((uint32_t)n);
+	}
+
 	return p;
 }
 void operator delete[](void *p) throw()
@@ -40,6 +73,21 @@ template<> uint32_t _GetExponentShift<8>()
 
 inline uint32_t GetExponentShift() { return _GetExponentShift<sizeof(void*)>(); }
 
+void InitializableMemory()
+{
+	s_pGraphicPool = new MemoryPool;
+	s_pNetworkPool = new MemoryPool;
+	s_pPhysicsPool = new MemoryPool;
+	s_pScratchPool = new MemoryPool;
+}
+
+void ShutdownMemory()
+{
+	delete s_pScratchPool;
+	delete s_pPhysicsPool;
+	delete s_pNetworkPool;
+	delete s_pGraphicPool;
+}
 
 StaticMemoryPool::StaticMemoryPool(uint32_t aExponent)
 	: m_dataSize(1 << aExponent)
@@ -110,6 +158,11 @@ void* StaticMemoryPool::Allocate()
 
 void StaticMemoryPool::Collect(MemoryBlock* apBlock, void* apPtr)
 {
+	if (apBlock == nullptr || this == nullptr)
+	{
+		return;
+	}
+
 	m_lock.lock();
 
 	MemoryBlock::Data* pCurrent = (MemoryBlock::Data*)apPtr;
@@ -166,10 +219,6 @@ MemoryPool::MemoryPool()
 
 MemoryPool::~MemoryPool()
 {
-	for (uint32_t i = 0; i < cPoolCount; ++i)
-	{
-		free(m_pPools[i]);
-	}
 }
 
 void* MemoryPool::Allocate(uint32_t aSize)
@@ -189,6 +238,8 @@ void* MemoryPool::Allocate(uint32_t aSize)
 
 void MemoryPool::Free(void* apPtr)
 {
+	if (apPtr == nullptr) return;
+
 	intptr_t blockPtr = (intptr_t)apPtr;
 	blockPtr &= StaticMemoryPool::cBlockMask;
 
@@ -202,5 +253,39 @@ void MemoryPool::Free(void* apPtr)
 
 	StaticMemoryPool* pPool = pBlock->pParent;
 
-	pPool->Collect(pBlock, apPtr);
+	if (pPool)
+	{
+		pPool->Collect(pBlock, apPtr);
+	}
+}
+
+void MemoryPoolStack::Push(MemoryPool* apPool)
+{
+	m_pPool[m_head] = apPool;
+	m_head++;
+}
+
+void MemoryPoolStack::Pop()
+{
+	m_head--;
+}
+
+MemoryPool* MemoryPoolStack::Get() const
+{
+	if (m_head != 0)
+	{
+		return m_pPool[m_head - 1];
+	}
+
+	return nullptr;
+}
+
+MemoryPoolStackScope::MemoryPoolStackScope(MemoryPool* apPool)
+{
+	s_pTls->memory.Push(apPool);
+}
+
+MemoryPoolStackScope::~MemoryPoolStackScope()
+{
+	s_pTls->memory.Pop();
 }

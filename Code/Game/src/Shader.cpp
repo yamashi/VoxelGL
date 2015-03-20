@@ -2,24 +2,28 @@
 #include "Log.h"
 #include "Memory.h"
 
+
 Shader::Shader()
+	: Initializable()
 {
 }
-
-Shader::Shader(const std::string& acVertCode, const std::string& acFragCode)
-{
-	m_vertexSource = acVertCode;
-	m_fragmentSource = acFragCode;
-
-	Load();
-}
-
 
 Shader::~Shader()
 {
 	glDeleteShader(m_vertexId);
 	glDeleteShader(m_fragmentId);
 	glDeleteProgram(m_programId);
+}
+
+void Shader::Load(const std::string& acVertCode, const std::string& acFragCode)
+{
+	m_vertexSource = acVertCode;
+	m_fragmentSource = acFragCode;
+
+	if (Load())
+	{
+		m_flags &= ~KDirty;
+	}
 }
 
 bool Shader::Load()

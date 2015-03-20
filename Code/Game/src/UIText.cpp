@@ -1,38 +1,38 @@
 #include "UIText.h"
 #include "Color.h"
 #include "Utils.h"
-
-#ifdef WIN32
-#	include <GL/glew.h>
-#elif __APPLE__
-#	define GL3_PROTOTYPES 1
-#	include <OpenGL/gl3.h>
-#else
-#	define GL3_PROTOTYPES 1
-#	include <GL3/gl3.h>
-#endif
-
-#include "glm/glm.hpp"
-#include "glm/gtx/transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include "ShaderManager.h"
 
 UIText::UIText(UIFont& aFont)
 	: m_font(aFont)
-	, m_simpleSplat("Shaders/Splat.vert", "Shaders/Splat.frag")
+	, m_pShader(ShaderManager::GetInstance().Get("ui_texture"))
 {
-
+	DoConstruct();
 }
 
 UIText::UIText(const UIText& aRhs)
 	: m_font(aRhs.m_font)
 	, m_text(aRhs.m_text)
+	, m_pShader(ShaderManager::GetInstance().Get("ui_texture"))
 {
+	DoConstruct();
+}
 
+void UIText::DoConstruct()
+{
+	if (m_pShader->IsDirty())
+	{
+		m_pShader->Load("Shaders/Splat.vert", "Shaders/Splat.frag");
+	}
 }
 
 UIText::~UIText()
 {
-
+	if (glIsVertexArray(m_vaoId))
+		glDeleteVertexArrays(1, &m_vaoId);
+	
+	if (glIsBuffer(m_vboId))
+		glDeleteBuffers(1, &m_vboId);
 }
 
 UIText& UIText::operator=(const UIText& aRhs)
@@ -60,47 +60,33 @@ std::string UIText::GetText() const
 	return m_text;
 }
 
-void UIText::Draw()
+void UIText::Draw(float aScreenWidth, float aScreenHeight, glm::mat4 aProjection, glm::mat4 aModelView)
 {
-	float vertices[] = {
-		-1, 1,
-		-1 + m_width, 1,
-		-1 + m_width, 1 - m_height,
-		-1, 1 - m_height
-	};
+	const uint32_t cSizeVertices = sizeof(float) * 8;
+	const uint32_t cSizeCoords = sizeof(float) * 8;
 
-	float coordTexture[] = {
-		0, 0,
-		1, 0,
-		1, 1,
-		0, 1
-	};
+	float w = float(m_texture.GetWidth());
+	float h = float(m_texture.GetHeight());
 
-	glm::mat4 projection;
-	glm::mat4 modelview;
+	aModelView = glm::mat4(1.0);
+	aModelView = glm::translate(aModelView, glm::vec3(0.0f + m_posX, 0.0f + m_posY, 0.0f));
 
-	projection = glm::perspective(70.0, (double)800 / 600, 1.0, 100.0);
-	modelview = glm::mat4(1.0);
+	glUseProgram(m_pShader->GetId());
+	{
 
-	glUseProgram(m_simpleSplat.GetId());
+		glBindVertexArray(m_vaoId);
+		{
+			glUniformMatrix4fv(glGetUniformLocation(m_pShader->GetId(), "modelview"), 1, GL_FALSE, value_ptr(aModelView));
+			glUniformMatrix4fv(glGetUniformLocation(m_pShader->GetId(), "projection"), 1, GL_FALSE, value_ptr(aProjection));
 
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, coordTexture);
-	glEnableVertexAttribArray(2);
-
-	glUniformMatrix4fv(glGetUniformLocation(m_simpleSplat.GetId(), "projection"), 1, GL_FALSE, value_ptr(projection));
-	glUniformMatrix4fv(glGetUniformLocation(m_simpleSplat.GetId(), "modelview"), 1, GL_FALSE, value_ptr(modelview));
-
-	glBindTexture(GL_TEXTURE_2D, m_textureId);
-
-	glDrawArrays(GL_QUADS, 0, 4);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glDisableVertexAttribArray(2);
-	glDisableVertexAttribArray(0);
+			m_texture.Bind();
+			{
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+			}
+			m_texture.Unbind();
+		}
+		glBindVertexArray(0);
+	}
 
 	glUseProgram(0);
 }
@@ -111,59 +97,63 @@ void UIText::GenerateTexture()
 
 	SDL_Surface* initial = TTF_RenderText_Blended(m_font.GetTTF(), m_text.c_str(), color);
 
-	uint32_t w = NextPower2(initial->w);
-	uint32_t h = NextPower2(initial->h);
-
-	SDL_Surface* inter = SDL_CreateRGBSurface(0, w, h, 32,
-		0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-
-	SDL_BlitSurface(initial, 0, inter, 0);
-
-	m_height = float(h) / 800.f;
-	m_width = float(w) / 600.f;
+	m_texture.Initialize(initial);
 
 	SDL_FreeSurface(initial);
 
-	m_pSurface = inter;
-
-	glGenTextures(1, &m_textureId);
-
-	glBindTexture(GL_TEXTURE_2D, m_textureId);
-
-	GLenum formatInterne(0);
-	GLenum format(0);
-
-	if (m_pSurface->format->BytesPerPixel == 3)
+	float vertices[] =
 	{
-		formatInterne = GL_RGB;
+		0, 0 ,
+		m_texture.GetWidth(), 0 ,
+		m_texture.GetWidth(), m_texture.GetHeight(),
+		m_texture.GetWidth(), m_texture.GetHeight(),
+		0, 0,
+		0, m_texture.GetHeight()
+	};
 
-		if (m_pSurface->format->Rmask == 0xff)
-			format = GL_RGB;
+	float coordTexture[] = {
+		0, 0,
+		1, 0,
+		1, 1,
+		1, 1,
+		0, 0,
+		0, 1
+	};
 
-		else
-			format = GL_BGR;
-	}
-	else if (m_pSurface->format->BytesPerPixel == 4)
+	const uint32_t cSizeVertices = sizeof(float) * 12;
+	const uint32_t cSizeCoords = sizeof(float) * 12;
+
+	if (glIsVertexArray(m_vaoId))
+		glDeleteVertexArrays(1, &m_vaoId);
+
+	if (glIsBuffer(m_vboId))
+		glDeleteBuffers(1, &m_vboId);
+
+	glGenBuffers(1, &m_vboId);
+	glGenVertexArrays(1, &m_vaoId);
+
+	glBindBuffer(GL_ARRAY_BUFFER, m_vboId);
 	{
-		formatInterne = GL_RGBA;
+		glBufferData(GL_ARRAY_BUFFER, cSizeVertices + cSizeCoords, 0, GL_STATIC_DRAW);
 
-		if (m_pSurface->format->Rmask == 0xff)
-			format = GL_RGBA;
-
-		else
-			format = GL_BGRA;
+		glBufferSubData(GL_ARRAY_BUFFER, 0, cSizeVertices, vertices);
+		glBufferSubData(GL_ARRAY_BUFFER, cSizeVertices, cSizeCoords, coordTexture);
 	}
-	else
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
+	glBindVertexArray(m_vaoId);
 	{
-		SDL_FreeSurface(m_pSurface);
-		return;
+
+		glBindBuffer(GL_ARRAY_BUFFER, m_vboId);
+		{
+			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+			glEnableVertexAttribArray(0);
+
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(cSizeVertices));
+			glEnableVertexAttribArray(2);
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
-
-
-	glTexImage2D(GL_TEXTURE_2D, 0, formatInterne, m_pSurface->w, m_pSurface->h, 0, format, GL_UNSIGNED_BYTE, m_pSurface->pixels);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindVertexArray(0);
 }

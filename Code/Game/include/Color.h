@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstdint>
-#include "SDL.h"
-
 class Color
 {
 public:

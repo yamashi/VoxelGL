@@ -1,8 +1,6 @@
 #include "Window.h"
 #include "Log.h"
 
-#include "SDL.h"
-
 
 Window::Window(const Options& acOptions)
 {
@@ -21,8 +19,6 @@ Window::Window(const Options& acOptions)
 	}
 
 	m_renderer.Initialize(ctx);
-
-
 }
 
 Window::~Window()

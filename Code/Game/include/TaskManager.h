@@ -3,13 +3,6 @@
 #include "Task.h"
 #include "Log.h"
 
-#include <queue>
-#include <mutex>
-#include <memory>
-#include <thread>
-
-#include <condition_variable>
-
 class TaskManager
 {
 public:

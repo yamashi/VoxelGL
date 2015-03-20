@@ -1,16 +1,25 @@
 #include "TaskManager.h"
+#include "ThreadLocal.h"
 
-#include <iostream>
 
 TaskManager* TaskManager::s_instance = nullptr;
+
 
 TaskManager::TaskManager()
 {
 	auto threadCount = std::thread::hardware_concurrency();
+	auto threadFunc = [this]()
+	{
+		InitializableTLS();
+
+		RunBackground();
+
+		ShutdownTLS();
+	};
 
 	for (unsigned int i = 0; i < threadCount; ++i)
 	{
-		m_threads.push(std::thread([this](){ RunBackground(); return; }));
+		m_threads.push(std::thread(threadFunc));
 	}
 }
 

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstdint>
-#include <mutex>
-
 #ifdef WIN32
 #	define StackAllocateArray(type, c) (type*)_malloca(sizeof(type) * c)
 #	define StackAllocate(type) StackAllocateArray(type, 1)
@@ -15,6 +12,9 @@
 #	define AllocAligned(size, alignment) _aligned_malloc(size, alignment)
 #	define FreeAligned(ptr) _aligned_free(ptr)
 #endif
+
+void InitializableMemory();
+void ShutdownMemory();
 
 struct MemoryBlock
 {
@@ -63,6 +63,8 @@ private:
 	std::mutex m_lock;
 };
 
+
+// MemoryPool assumes any memory allocated can live forever, deleting a memory pool does not free its allocations
 class MemoryPool
 {
 public:
@@ -78,7 +80,7 @@ public:
 		if (s_instance == nullptr)
 		{
 			void* pPlacement = malloc(sizeof(MemoryPool));
-			s_instance = new (pPlacement)MemoryPool;
+			s_instance = new (pPlacement) MemoryPool;
 		}
 		return *s_instance;
 	}
@@ -92,3 +94,31 @@ private:
 	StaticMemoryPool* m_pPools[cPoolCount];
 	std::mutex m_lock;
 };
+
+#define MEMORY_PUSH(pool) MemoryPoolStackScope _memoryPoolStack_##__LINE__(pool)
+
+class MemoryPoolStack
+{
+public:
+
+	void Push(MemoryPool* apPool);
+	void Pop();
+
+	MemoryPool* Get() const;
+
+private:
+
+	MemoryPool* m_pPool[64];
+	uint32_t m_head{ 0 };
+};
+
+struct MemoryPoolStackScope
+{
+	MemoryPoolStackScope(MemoryPool* apPool);
+	~MemoryPoolStackScope();
+};
+
+extern MemoryPool* s_pGraphicPool;
+extern MemoryPool* s_pNetworkPool;
+extern MemoryPool* s_pPhysicsPool;
+extern MemoryPool* s_pScratchPool;
