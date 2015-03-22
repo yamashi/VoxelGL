@@ -13,7 +13,11 @@ public:
 
 	void Load(const std::string& acVertCode, const std::string& acFragCode);
 
-	static std::shared_ptr<Shader> Create() { return std::make_shared<Shader>(); }
+	template<class... Args>
+	static std::shared_ptr<Shader> Create(Args&&... args)
+	{
+		return std::make_shared<Shader>(args...);
+	}
 
 protected:
 

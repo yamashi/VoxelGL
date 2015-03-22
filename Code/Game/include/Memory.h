@@ -16,21 +16,7 @@
 void InitializableMemory();
 void ShutdownMemory();
 
-struct MemoryBlock
-{
-	uint32_t magic;
-	uint32_t available;
-	class StaticMemoryPool* pParent;
-	MemoryBlock* pNextBlock;
-
-	union Data
-	{
-		Data* pNext;
-		void* pData;
-	};
-
-	Data* pHead;
-};
+struct MemoryBlock;
 
 class StaticMemoryPool
 {

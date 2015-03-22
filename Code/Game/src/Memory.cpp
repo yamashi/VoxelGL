@@ -2,65 +2,23 @@
 #include "Utils.h"
 #include "ThreadLocal.h"
 
-// This will leak on purpose
-MemoryPool* MemoryPool::s_instance = nullptr;
-
-MemoryPool* s_pGraphicPool = nullptr;
-MemoryPool* s_pNetworkPool = nullptr;
-MemoryPool* s_pPhysicsPool = nullptr;
-MemoryPool* s_pScratchPool = nullptr;
-
-void* operator new(std::size_t n)
+struct MemoryBlock
 {
-	void* p = nullptr;
+	uint32_t magic;
+	uint32_t available;
+	class StaticMemoryPool* pParent;
+	MemoryBlock* pNextBlock;
 
-	if (s_pTls)
+	union Data
 	{
-		MemoryPool* pPool = s_pTls->memory.Get();
-		if (pPool)
-		{
-			p = pPool->Allocate((uint32_t)n);
-		}
-	}
+		Data* pNext;
+		void* pData;
+	};
 
-	if (!p)
-	{
-		p = MemoryPool::GetInstance().Allocate((uint32_t)n);
-	}
+	Data* pHead;
+};
 
-	return p;
-}
-
-void operator delete(void * p) throw()
-{
-	MemoryPool::GetInstance().Free(p);
-}
-
-void *operator new[](std::size_t n)
-{
-	void* p = nullptr;
-
-	if (s_pTls)
-	{
-		MemoryPool* pPool = s_pTls->memory.Get();
-		if (pPool)
-		{
-			p = pPool->Allocate((uint32_t)n);
-		}
-	}
-
-	if (!p)
-	{
-		p = MemoryPool::GetInstance().Allocate((uint32_t)n);
-	}
-
-	return p;
-}
-void operator delete[](void *p) throw()
-{
-	MemoryPool::GetInstance().Free(p);
-}
-
+// Helpers
 template<int> uint32_t _GetExponentShift();
 template<> uint32_t _GetExponentShift<4>()
 {
@@ -72,6 +30,75 @@ template<> uint32_t _GetExponentShift<8>()
 }
 
 inline uint32_t GetExponentShift() { return _GetExponentShift<sizeof(void*)>(); }
+
+
+
+// This will leak on purpose
+MemoryPool* MemoryPool::s_instance = nullptr;
+
+MemoryPool* s_pGraphicPool = nullptr;
+MemoryPool* s_pNetworkPool = nullptr;
+MemoryPool* s_pPhysicsPool = nullptr;
+MemoryPool* s_pScratchPool = nullptr;
+
+// Overloads
+
+void* operator new(std::size_t n)
+{
+	/*void* p = nullptr;
+
+	if (s_pTls)
+	{
+		MemoryPool* pPool = s_pTls->memory.Get();
+		if (pPool)
+		{
+			p = pPool->Allocate((uint32_t)n);
+		}
+	}
+
+	if (!p)
+	{
+		p = MemoryPool::GetInstance().Allocate((uint32_t)n);
+	}
+
+	return p;*/
+	return malloc(n);
+}
+
+void operator delete(void * p) throw()
+{
+	//MemoryPool::GetInstance().Free(p);
+	free(p);
+}
+
+void *operator new[](std::size_t n)
+{
+	/*void* p = nullptr;
+
+	if (s_pTls)
+	{
+		MemoryPool* pPool = s_pTls->memory.Get();
+		if (pPool)
+		{
+			p = pPool->Allocate((uint32_t)n);
+		}
+	}
+
+	if (!p)
+	{
+		p = MemoryPool::GetInstance().Allocate((uint32_t)n);
+	}
+
+	return p;*/
+	return malloc(n);
+}
+void operator delete[](void *p) throw()
+{
+	free(p);
+	//MemoryPool::GetInstance().Free(p);
+}
+
+// Global
 
 void InitializableMemory()
 {
@@ -88,6 +115,8 @@ void ShutdownMemory()
 	delete s_pNetworkPool;
 	delete s_pGraphicPool;
 }
+
+// Static pool
 
 StaticMemoryPool::StaticMemoryPool(uint32_t aExponent)
 	: m_dataSize(1 << aExponent)
@@ -109,6 +138,15 @@ StaticMemoryPool::StaticMemoryPool(uint32_t aExponent)
 
 StaticMemoryPool::~StaticMemoryPool()
 {
+	MemoryBlock* pCurrent = m_pHead;
+	while (pCurrent)
+	{
+		MemoryBlock* pNext = pCurrent->pNextBlock;
+
+		FreeAligned(pCurrent);
+
+		pCurrent = pNext;
+	}
 }
 
 MemoryBlock* StaticMemoryPool::CreateBlock()
@@ -208,6 +246,8 @@ void StaticMemoryPool::FindBlock()
 	}
 }
 
+// Memory pool
+
 MemoryPool::MemoryPool()
 {
 	for (uint32_t i = 0; i < cPoolCount; ++i)
@@ -259,6 +299,8 @@ void MemoryPool::Free(void* apPtr)
 	}
 }
 
+// Pool stack
+
 void MemoryPoolStack::Push(MemoryPool* apPool)
 {
 	m_pPool[m_head] = apPool;
@@ -279,6 +321,8 @@ MemoryPool* MemoryPoolStack::Get() const
 
 	return nullptr;
 }
+
+// Stack scope
 
 MemoryPoolStackScope::MemoryPoolStackScope(MemoryPool* apPool)
 {

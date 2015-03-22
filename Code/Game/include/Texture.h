@@ -17,7 +17,11 @@ public:
 	void Bind();
 	void Unbind();
 
-	static std::shared_ptr < Texture > Create() { return std::make_shared<Texture>(); }
+	template<class... Args>
+	static std::shared_ptr<Texture> Create(Args&&... args)
+	{
+		return std::make_shared<Texture>(args...);
+	}
 
 private:
 

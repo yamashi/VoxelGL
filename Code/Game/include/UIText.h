@@ -1,16 +1,17 @@
 #pragma once
 
-#include "UIFont.h"
+#include "Font.h"
+#include "UIElement.h"
 #include "Shader.h"
 #include "Texture.h"
 
-class UIText
+class UIText : public UIElement
 {
 public:
 
 	UIText(UIFont& aFont);
 	UIText(const UIText& aRhs);
-	~UIText();
+	virtual ~UIText();
 
 	UIText& operator=(const UIText& aRhs);
 
@@ -19,11 +20,13 @@ public:
 
 	std::string GetText() const;
 
-	void Draw(float aScreenWidth, float aScreenHeight, glm::mat4 aProjection, glm::mat4 aModelView);
+	virtual void Draw(const UIRenderContext& acRenderContext);
 
-	void SetPosition(float aX, float aY) { m_posX = aX; m_posY = aY; }
-	float GetPositionX() const { return m_posX; }
-	float GetPositionY() const { return m_posY; }
+	template<class... Args>
+	static std::shared_ptr<UIText> Create(Args&&... args)
+	{
+		return std::make_shared<UIText>(std::forward<Args>(args)...);
+	}
 
 protected:
 
@@ -36,11 +39,10 @@ private:
 	GLuint m_vboId{ 0 };
 	GLuint m_vaoId{ 0 };
 
-	float m_posX{ 0.0f };
-	float m_posY{ 0.0f };
-
 	UIFont& m_font;
 	std::string m_text;
-	ShaderPtr m_pShader;
 	Texture m_texture;
 };
+
+using UITextPtr = std::shared_ptr < UIText > ;
+using UITextWeakPtr = std::weak_ptr < UIText > ;

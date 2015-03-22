@@ -35,7 +35,7 @@ inline std::shared_ptr<T> IManager<T>::Get(const std::string& acString, bool aFa
 	auto itor = m_ptrMap.find(acString);
 	if (itor != m_ptrMap.end())
 	{
-		std::shared_ptr<T> ptr = itor->second.lock();
+		ptr = itor->second.lock();
 
 		if (aFailDelete && !ptr)
 		{

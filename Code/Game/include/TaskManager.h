@@ -15,6 +15,9 @@ public:
 
 	void Run(uint32_t aMillisecondsAllocated);
 
+	uint32_t GetBackgroundTasks() const { return m_backgroundTasks.size(); }
+	uint32_t GetMainthreadTasks() const { return m_mainthreadTasks.size(); }
+
 	static void Initialize()
 	{
 		if (s_instance != nullptr)

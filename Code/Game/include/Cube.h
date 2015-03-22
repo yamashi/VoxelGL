@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Shader.h"
+#include "Mesh.h"
+#include "RenderList.h"
 
 class Cube
 {
@@ -21,6 +23,6 @@ private:
 protected:
 
 	ShaderPtr m_pShader;
-	GLuint m_vboId{ 0 };
-	GLuint m_vaoId{ 0 };
+	RenderList m_renderList;
+	Mesh m_mesh;
 };
